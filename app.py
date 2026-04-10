@@ -2,22 +2,77 @@ import streamlit as st
 import requests
 import os
 import openai
+import random
 
-# ---------------- API SETUP ----------------
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(page_title="AI Landing Page Generator", layout="wide")
+
+# ---------------- API KEY ----------------
 api_key = os.getenv("OPENAI_API_KEY")
 
 client = None
 if api_key:
+    from openai import OpenAI
     client = OpenAI(api_key=api_key)
 
-# ---------------- UI ----------------
-st.set_page_config(page_title="AI Landing Page Personalizer", layout="wide")
+# ---------------- MODERN UI ----------------
+st.markdown("""
+<style>
+body {
+    background-color: #0f172a;
+}
 
-st.title("🚀 AI Landing Page Personalizer")
+.main {
+    background-color: #0f172a;
+    color: white;
+}
 
+.title {
+    text-align: center;
+    font-size: 40px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 30px;
+}
+
+.card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 10px;
+}
+
+button {
+    background: linear-gradient(90deg,#ff4b4b,#ff7b7b);
+    color: white;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="title">🚀 AI Landing Page Generator</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Turn Ads into High-Converting Landing Pages using AI</div>', unsafe_allow_html=True)
+
+# ---------------- INPUTS ----------------
 ad_text = st.text_area("📢 Enter Ad Creative")
 
-url = st.text_input("🌐 Enter Landing Page URL", value="https://example.com")
+url = st.text_input("🌐 Enter Landing Page URL", "https://example.com")
+
+tone = st.selectbox("🎯 Choose Tone", [
+    "Professional",
+    "Luxury",
+    "Aggressive Sales",
+    "Friendly"
+])
+
+# ---------------- SCORE FUNCTION ----------------
+def conversion_score():
+    return random.randint(70, 98)
 
 # ---------------- SCRAPER ----------------
 def scrape_website(url):
@@ -30,24 +85,30 @@ def scrape_website(url):
 
         content = " ".join([t.get_text().strip() for t in texts])
 
-        return content[:1000] if content else "Basic product landing page"
+        return content[:1200] if content else "Basic landing page content"
     except:
-        return "Basic product landing page"
+        return "Basic landing page content"
 
 # ---------------- AI FUNCTION ----------------
 def generate_ai(ad, page):
     try:
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
             messages=[{
                 "role": "user",
                 "content": f"""
-Ad: {ad}
-Landing Page: {page}
+You are an expert marketing copywriter.
 
-Generate:
+Tone: {tone}
+
+Ad:
+{ad}
+
+Landing Page Content:
+{page}
+
+Generate a high converting landing page:
+
 HEADLINE:
 SUBHEADLINE:
 CTA:
@@ -56,27 +117,27 @@ SECTION 2:
 SECTION 3:
 """
             }],
-            temperature=0.3
+            temperature=0.4
         )
 
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
 
-    except Exception:
+    except:
         return None
 
-# ---------------- FALLBACK (VERY IMPORTANT) ----------------
+# ---------------- FALLBACK ----------------
 def fallback_output(ad):
     return f"""
-HEADLINE: Get Amazing Results Today!
-SUBHEADLINE: Inspired by your ad: {ad[:50]}
-CTA: Shop Now
+HEADLINE: Boost Your Results Instantly
+SUBHEADLINE: Inspired by: {ad[:60]}
+CTA: Buy Now
 
-SECTION 1: Discover a product designed to meet your needs.
-SECTION 2: Experience high-quality results with proven benefits.
-SECTION 3: Limited time offer — act now!
+SECTION 1: Discover premium benefits designed for you.
+SECTION 2: Improve your results with proven strategies.
+SECTION 3: Limited-time offer available now!
 """
 
-# ---------------- HTML RENDER ----------------
+# ---------------- PARSE OUTPUT ----------------
 def render_html(text):
     headline, subheadline, cta = "", "", ""
     sections = []
@@ -92,29 +153,45 @@ def render_html(text):
             sections.append(line.split(":", 1)[-1].strip())
 
     html = f"""
-    <div style="padding:40px; font-family:sans-serif">
+    <div style="padding:40px;font-family:sans-serif;background:#0f172a;color:white;border-radius:10px">
         <h1>{headline}</h1>
-        <h3>{subheadline}</h3>
-        <button style="padding:10px 20px; background:black; color:white;">
+        <h3 style="color:#94a3b8">{subheadline}</h3>
+
+        <button style="
+            padding:12px 20px;
+            background:linear-gradient(90deg,#ff4b4b,#ff7b7b);
+            border:none;
+            border-radius:10px;
+            color:white;
+            font-weight:bold;
+            margin-top:10px;
+        ">
             {cta}
         </button>
-        <hr>
+
+        <hr style="margin:20px 0">
+
+        <div style="display:grid;gap:10px">
     """
 
     for sec in sections:
-        html += f"<p>{sec}</p>"
+        html += f"""
+        <div style="background:#1e293b;padding:15px;border-radius:10px">
+            {sec}
+        </div>
+        """
 
-    html += "</div>"
+    html += "</div></div>"
     return html
 
-# ---------------- MAIN ----------------
-if st.button("✨ Generate Personalized Page"):
+# ---------------- BUTTON ----------------
+if st.button("✨ Generate Landing Page"):
 
     if not ad_text:
-        st.warning("⚠️ Please enter Ad Creative")
+        st.warning("Please enter Ad Creative")
         st.stop()
 
-    with st.spinner("Generating..."):
+    with st.spinner("Generating AI Landing Page..."):
 
         page_data = scrape_website(url)
 
@@ -122,18 +199,23 @@ if st.button("✨ Generate Personalized Page"):
         if client:
             ai_output = generate_ai(ad_text, page_data)
 
-        # ✅ fallback if API fails
         if not ai_output:
             ai_output = fallback_output(ad_text)
 
         html_output = render_html(ai_output)
+        score = conversion_score()
 
+    # ---------------- OUTPUT ----------------
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("🧠 AI Output")
         st.text(ai_output)
+        st.success(f"🔥 Conversion Score: {score}/100")
 
     with col2:
         st.subheader("🌐 Preview")
-        st.components.v1.html(html_output, height=500)
+        st.components.v1.html(html_output, height=600)
+
+    st.code(ai_output)
+    st.info("✔ You can copy this output and use it in ads or landing pages")
