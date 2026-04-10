@@ -37,8 +37,10 @@ def scrape_website(url):
 # ---------------- AI FUNCTION ----------------
 def generate_ai(ad, page):
     try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
             messages=[{
                 "role": "user",
                 "content": f"""
@@ -57,9 +59,9 @@ SECTION 3:
             temperature=0.3
         )
 
-        return response.choices[0].message.content
+        return response["choices"][0]["message"]["content"]
 
-    except:
+    except Exception:
         return None
 
 # ---------------- FALLBACK (VERY IMPORTANT) ----------------
